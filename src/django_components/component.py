@@ -13,6 +13,18 @@ def _next_render_id():
     return f"r{_render_counter:06x}"
 
 
+class _SlotFillAdapter:
+    """Adapts a Slot object to work as a fill node in SlotNode.render()."""
+
+    def __init__(self, slot):
+        self.slot = slot
+        self.data_var = None
+        self.fallback_var = None
+
+    def render_fill(self, context, slot_data=None, slot_fallback=None):
+        return self.slot(data=slot_data, fallback=slot_fallback, context=context)
+
+
 class Component:
     template: ClassVar[Optional[str]] = None
     template_file: ClassVar[Optional[str]] = None
@@ -98,6 +110,15 @@ class Component:
             render_context[k] = v
         render_context["_component_instance"] = instance
         render_context["_component_id"] = instance.id
+
+        if instance.slots:
+            from django_components.templatetags.component_tags import _FILL_CONTEXT_KEY
+            fills = render_context.get(_FILL_CONTEXT_KEY, {})
+            for slot_name, slot_obj in instance.slots.items():
+                if slot_name not in fills:
+                    fills[slot_name] = _SlotFillAdapter(slot_obj)
+            render_context[_FILL_CONTEXT_KEY] = fills
+
         instance._context = render_context
 
         try:
@@ -108,7 +129,15 @@ class Component:
         return mark_safe(rendered.strip())
 
     @classmethod
-    def render_to_response(cls, *a, **kw):
+    def render_to_response(cls, args=None, kwargs=None, slots=None, context=None,
+                           registered_name=None, request=None, **response_kwargs):
         from django.http import HttpResponse
-        html = cls.render(*a, **kw)
-        return HttpResponse(html)
+        html = cls.render(
+            args=args,
+            kwargs=kwargs,
+            slots=slots,
+            context=context,
+            registered_name=registered_name,
+            request=request,
+        )
+        return HttpResponse(html, **response_kwargs)
