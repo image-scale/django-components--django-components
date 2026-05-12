@@ -18,6 +18,7 @@ from django_components.tag_formatter import (
     component_formatter,
     component_shorthand_formatter,
 )
+from django_components.testing import djc_test, setup_test_config
 
 __all__ = [
     "AlreadyRegistered",
@@ -34,10 +35,12 @@ __all__ = [
     "TagResult",
     "component_formatter",
     "component_shorthand_formatter",
+    "djc_test",
     "format_attributes",
     "merge_attributes",
     "register",
     "registry",
     "render_dependencies",
     "RegistrySettings",
+    "setup_test_config",
 ]
