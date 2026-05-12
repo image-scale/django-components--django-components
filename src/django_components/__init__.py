@@ -1,5 +1,6 @@
 from django_components.component import Component
 from django_components.attributes import format_attributes, merge_attributes
+from django_components.app_settings import ComponentsSettings, ContextBehavior
 from django_components.dependencies import Script, Style, render_dependencies
 from django_components.registry import (
     AlreadyRegistered,
@@ -23,6 +24,8 @@ __all__ = [
     "Component",
     "ComponentFormatter",
     "ComponentRegistry",
+    "ComponentsSettings",
+    "ContextBehavior",
     "NotRegistered",
     "Script",
     "ShorthandComponentFormatter",

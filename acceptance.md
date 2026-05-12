@@ -1,16 +1,16 @@
 # Acceptance Criteria
 
-## Task 1-6: Previously completed
+## Task 1-7: Previously completed
 - [x] All criteria met
 
-## Task 7: Tag formatters
+## Task 8: Django app config, settings, template loader, finders
 
 ### Acceptance Criteria
-- [ ] A TagFormatterABC abstract base class defines the interface for tag formatters with start_tag, end_tag, and parse methods
-- [ ] A ComponentFormatter (default) generates `{% component "name" %}{% endcomponent %}` syntax
-- [ ] A ShorthandComponentFormatter generates `{% name %}{% endname %}` shorthand syntax
-- [ ] Tag formatters return a TagResult containing the component name and remaining tokens
-- [ ] ComponentFormatter.start_tag("calendar") returns "component" and end_tag returns "endcomponent"
-- [ ] ShorthandComponentFormatter.start_tag("calendar") returns "calendar" and end_tag returns "endcalendar"
-- [ ] Formatters can be set per registry via RegistrySettings
-- [ ] component_formatter and component_shorthand_formatter are pre-built formatter instances
+- [ ] A ComponentsConfig AppConfig class exists with name="django_components"
+- [ ] A ComponentsSettings class reads configuration from Django settings COMPONENTS dict
+- [ ] Settings support: autodiscover (bool), dirs (list of paths), context_behavior ("django" or "isolated")
+- [ ] A ContextBehavior enum/class has DJANGO and ISOLATED values
+- [ ] A template loader (Loader class) loads templates from component directories
+- [ ] A static file finder (ComponentFinder class) finds static files in component directories
+- [ ] Default settings are used when COMPONENTS is not configured
+- [ ] context_behavior setting affects how slot fills access component context (isolated mode restricts fill to outer context only)

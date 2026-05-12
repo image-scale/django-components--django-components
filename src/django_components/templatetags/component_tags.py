@@ -11,6 +11,7 @@ register = django.template.Library()
 
 _FILL_CONTEXT_KEY = "__component_fills__"
 _COMPONENT_CONTEXT_KEY = "__component_instance__"
+_OUTER_CONTEXT_KEY = "__outer_context__"
 
 
 def _strip_quotes(val):
@@ -76,11 +77,16 @@ class ComponentNode(Node):
             context,
         )
 
+        outer_context_flat = {}
+        for d in context.dicts:
+            outer_context_flat.update(d)
+
         context.push()
         for k, v in (template_data or {}).items():
             context[k] = v
         context[_COMPONENT_CONTEXT_KEY] = instance
         context[_FILL_CONTEXT_KEY] = fills
+        context[_OUTER_CONTEXT_KEY] = outer_context_flat
         instance._context = context
 
         try:
@@ -168,6 +174,15 @@ class SlotNode(Node):
         if fill_node is not None:
             if hasattr(fill_node, 'render_fill'):
                 data_obj = _SlotData(slot_data) if slot_data else None
+                from django_components.app_settings import app_settings
+                behavior = app_settings.CONTEXT_BEHAVIOR
+                if behavior == "isolated":
+                    outer = context.get(_OUTER_CONTEXT_KEY, {})
+                    isolated_ctx = Context(outer)
+                    isolated_ctx[_FILL_CONTEXT_KEY] = fills
+                    if hasattr(context, 'template'):
+                        isolated_ctx.template = context.template
+                    return fill_node.render_fill(isolated_ctx, slot_data=data_obj, slot_fallback=slot_fallback)
                 return fill_node.render_fill(context, slot_data=data_obj, slot_fallback=slot_fallback)
             return str(fill_node)
 
