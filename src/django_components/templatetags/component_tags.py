@@ -61,8 +61,11 @@ class ComponentNode(Node):
         instance.kwargs = dict(resolved_kwargs)
 
         from django_components.slots import normalize_slot_map
+        from django_components.dependencies import register_component_dependencies
         instance.slots = {}
         instance._context = context
+
+        register_component_dependencies(comp_cls)
 
         tmpl = instance._resolve_template()
 
@@ -437,3 +440,25 @@ def do_provide(parser, token):
         parser.delete_first_token()
 
     return ProvideNode(provide_name, kwargs_exprs, nodelist, self_closing=self_closing)
+
+
+class CssDependenciesNode(Node):
+    def render(self, context: Context) -> str:
+        from django_components.dependencies import render_collected_css
+        return render_collected_css()
+
+
+class JsDependenciesNode(Node):
+    def render(self, context: Context) -> str:
+        from django_components.dependencies import render_collected_js
+        return render_collected_js()
+
+
+@register.tag("component_css_dependencies")
+def do_component_css_dependencies(parser, token):
+    return CssDependenciesNode()
+
+
+@register.tag("component_js_dependencies")
+def do_component_js_dependencies(parser, token):
+    return JsDependenciesNode()
