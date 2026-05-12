@@ -4,6 +4,9 @@ from pathlib import Path
 import django
 from django.conf import settings
 
+# Add src to path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
 
 def setup_test_django():
     if settings.configured:
@@ -16,6 +19,9 @@ def setup_test_django():
                 "BACKEND": "django.template.backends.django.DjangoTemplates",
                 "DIRS": [str(Path(__file__).resolve().parent / "templates")],
                 "OPTIONS": {
+                    "builtins": [
+                        "django_components.templatetags.component_tags",
+                    ],
                     "loaders": [
                         "django.template.loaders.filesystem.Loader",
                         "django.template.loaders.app_directories.Loader",
@@ -34,5 +40,4 @@ def setup_test_django():
     django.setup()
 
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+setup_test_django()

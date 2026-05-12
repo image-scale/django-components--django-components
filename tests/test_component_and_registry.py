@@ -1,11 +1,3 @@
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-
-from tests.conftest import setup_test_django
-setup_test_django()
-
 import pytest
 from django.template import Context, Template
 

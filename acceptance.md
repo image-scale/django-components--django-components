@@ -1,19 +1,17 @@
 # Acceptance Criteria
 
 ## Task 1: Core Component class and registry
+- [x] All criteria met (14/14)
+
+## Task 2: Template tags (component, slot, fill)
 
 ### Acceptance Criteria
-- [ ] A Component base class exists that users subclass to create components
-- [ ] Components can define inline templates via a `template` class attribute (string)
-- [ ] Components implement `get_template_data(self, args, kwargs, slots, context)` to return template context variables
-- [ ] `Component.render(kwargs={"key": "value"})` returns rendered HTML string with variables interpolated
-- [ ] `Component.render(args=[1, 2])` passes positional args to get_template_data
-- [ ] A ComponentRegistry class exists with register(name, component), unregister(name), get(name), has(name), all(), and clear() methods
-- [ ] A default global `registry` instance is available
-- [ ] A `@register("name")` decorator registers a component with the global registry
-- [ ] `@register("name", registry=custom_reg)` registers with a custom registry
-- [ ] Registering a different component class under the same name raises AlreadyRegistered
-- [ ] Re-registering the same component class under the same name is allowed (no error)
-- [ ] Unregistering a name that doesn't exist raises NotRegistered
-- [ ] Component.render() works without registration (standalone rendering)
-- [ ] Components can access self.name, returning the registered name or class name as fallback
+- [ ] A `{% component "name" %}{% endcomponent %}` template tag renders a registered component in a Django template
+- [ ] The component tag passes keyword arguments to the component, e.g., `{% component "name" key="value" %}`
+- [ ] A `{% slot "name" %}default content{% endslot %}` tag in a component template defines a slot with default/fallback content
+- [ ] A `{% fill "name" %}custom content{% endfill %}` tag inside a component tag replaces the corresponding slot content
+- [ ] If a slot is not filled, its default/fallback content is rendered
+- [ ] Multiple named slots can coexist in a single component template
+- [ ] Nested component rendering works (component A's template can render component B)
+- [ ] Template tags are loadable via `{% load component_tags %}`
+- [ ] Context variables from the parent template are accessible inside fill blocks
