@@ -1,18 +1,16 @@
 # Acceptance Criteria
 
-## Task 1-5: Previously completed
+## Task 1-6: Previously completed
 - [x] All criteria met
 
-## Task 6: JS/CSS dependency management
+## Task 7: Tag formatters
 
 ### Acceptance Criteria
-- [ ] A Script class represents a JavaScript dependency, supporting both inline content and external URLs
-- [ ] A Style class represents a CSS dependency, supporting both inline content and external URLs
-- [ ] Script(content="...") renders as `<script>...</script>`
-- [ ] Script(url="/path/to/file.js") renders as `<script src="/path/to/file.js"></script>`
-- [ ] Style(content="...") renders as `<style>...</style>`
-- [ ] Style(url="/path/to/file.css") renders as `<link rel="stylesheet" href="/path/to/file.css">`
-- [ ] Components can define a Media inner class with js and css lists of paths
-- [ ] `{% component_css_dependencies %}` and `{% component_js_dependencies %}` template tags render collected dependencies
-- [ ] Dependencies are collected from rendered components and deduplicated
-- [ ] A render_dependencies function processes rendered HTML to insert JS/CSS at placeholder locations
+- [ ] A TagFormatterABC abstract base class defines the interface for tag formatters with start_tag, end_tag, and parse methods
+- [ ] A ComponentFormatter (default) generates `{% component "name" %}{% endcomponent %}` syntax
+- [ ] A ShorthandComponentFormatter generates `{% name %}{% endname %}` shorthand syntax
+- [ ] Tag formatters return a TagResult containing the component name and remaining tokens
+- [ ] ComponentFormatter.start_tag("calendar") returns "component" and end_tag returns "endcomponent"
+- [ ] ShorthandComponentFormatter.start_tag("calendar") returns "calendar" and end_tag returns "endcalendar"
+- [ ] Formatters can be set per registry via RegistrySettings
+- [ ] component_formatter and component_shorthand_formatter are pre-built formatter instances

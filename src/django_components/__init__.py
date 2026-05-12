@@ -9,14 +9,28 @@ from django_components.registry import (
     register,
     registry,
 )
+from django_components.tag_formatter import (
+    ComponentFormatter,
+    ShorthandComponentFormatter,
+    TagFormatterABC,
+    TagResult,
+    component_formatter,
+    component_shorthand_formatter,
+)
 
 __all__ = [
     "AlreadyRegistered",
     "Component",
+    "ComponentFormatter",
     "ComponentRegistry",
     "NotRegistered",
     "Script",
+    "ShorthandComponentFormatter",
     "Style",
+    "TagFormatterABC",
+    "TagResult",
+    "component_formatter",
+    "component_shorthand_formatter",
     "format_attributes",
     "merge_attributes",
     "register",
