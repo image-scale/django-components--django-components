@@ -7,12 +7,21 @@
 - [x] All criteria met (9/9)
 
 ## Task 3: Advanced slot features
+- [x] All criteria met (7/7)
+
+## Task 4: HTML attribute formatting and merging
 
 ### Acceptance Criteria
-- [ ] Required slots (`{% slot "name" required %}`) raise a TemplateSyntaxError when not filled
-- [ ] Default slot flag (`{% slot "name" default %}`) captures non-fill content from the component body as the default slot fill
-- [ ] Scoped slots: slot tags accept keyword data args (`{% slot "name" data1="val" %}`), and fill tags can receive them via a data variable (`{% fill "name" data="slot_data" %}` then `{{ slot_data.data1 }}`)
-- [ ] Fill tags can access slot fallback content via a fallback variable (`{% fill "name" fallback="fb" %}` then `{{ fb }}`)
-- [ ] Slots can be self-closing (`{% slot "name" / %}`)
-- [ ] Required slots don't raise if they ARE filled
-- [ ] Scoped slot data is resolved from context variables, not just literal strings
+- [ ] `format_attributes({"class": "foo", "id": "bar"})` returns `'class="foo" id="bar"'`
+- [ ] `format_attributes({"required": True})` returns `"required"` (boolean attribute)
+- [ ] `format_attributes({"disabled": False})` returns `""` (removed)
+- [ ] `format_attributes({"data": None})` returns `""` (removed)
+- [ ] Special characters in values are HTML-escaped, but SafeString values are not escaped
+- [ ] `merge_attributes({"class": "a"}, {"class": "b"})` returns `{"class": "a b"}`
+- [ ] `merge_attributes` handles class as dict: `{"class": {"active": True, "hidden": False}}` yields only truthy keys
+- [ ] `merge_attributes` handles class as list: `{"class": ["a", "b"]}` joins them
+- [ ] `merge_attributes` handles style merging: later styles override earlier property values
+- [ ] Style with `None` value is ignored; style with `False` value removes the property
+- [ ] Non-class/style attributes are concatenated with space separator
+- [ ] An `{% html_attrs %}` template tag renders attributes in templates, accepting positional args for attr dicts and keyword args for individual attrs
+- [ ] `{% html_attrs %}` supports a defaults dict that is overridden by explicit attrs

@@ -295,3 +295,74 @@ def do_fill(parser, token):
         parser.delete_first_token()
 
     return FillNode(slot_name, nodelist, data_var=data_var, fallback_var=fallback_var)
+
+
+class HtmlAttrsNode(Node):
+    def __init__(self, positional_exprs, kwargs_exprs, defaults_exprs):
+        self.positional_exprs = positional_exprs
+        self.kwargs_exprs = kwargs_exprs
+        self.defaults_exprs = defaults_exprs
+
+    def render(self, context: Context) -> str:
+        from django_components.attributes import format_attributes, merge_attributes
+
+        defaults_dict = {}
+        for key, val_expr in self.defaults_exprs.items():
+            if hasattr(val_expr, 'resolve'):
+                defaults_dict[key] = val_expr.resolve(context)
+            else:
+                defaults_dict[key] = val_expr
+
+        attr_dicts = []
+        if defaults_dict:
+            attr_dicts.append(defaults_dict)
+
+        for expr in self.positional_exprs:
+            if hasattr(expr, 'resolve'):
+                resolved = expr.resolve(context)
+            else:
+                resolved = expr
+            if isinstance(resolved, dict):
+                attr_dicts.append(resolved)
+
+        extra_kwargs = {}
+        for key, val_expr in self.kwargs_exprs.items():
+            if hasattr(val_expr, 'resolve'):
+                extra_kwargs[key] = val_expr.resolve(context)
+            else:
+                extra_kwargs[key] = val_expr
+        if extra_kwargs:
+            attr_dicts.append(extra_kwargs)
+
+        if attr_dicts:
+            merged = merge_attributes(*attr_dicts)
+        else:
+            merged = {}
+
+        return format_attributes(merged)
+
+
+@register.tag("html_attrs")
+def do_html_attrs(parser, token):
+    bits = token.split_contents()
+    tag_name = bits[0]
+
+    positional_exprs = []
+    kwargs_exprs = {}
+    defaults_exprs = {}
+
+    for bit in bits[1:]:
+        if bit.startswith("defaults:"):
+            rest = bit[len("defaults:"):]
+            if "=" in rest:
+                key, val_str = rest.split("=", 1)
+                defaults_exprs[key] = parser.compile_filter(val_str)
+            else:
+                defaults_exprs[rest] = parser.compile_filter(rest)
+        elif "=" in bit:
+            key, val_str = bit.split("=", 1)
+            kwargs_exprs[key] = parser.compile_filter(val_str)
+        else:
+            positional_exprs.append(parser.compile_filter(bit))
+
+    return HtmlAttrsNode(positional_exprs, kwargs_exprs, defaults_exprs)
