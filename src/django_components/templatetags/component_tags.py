@@ -13,17 +13,10 @@ _FILL_CONTEXT_KEY = "__component_fills__"
 _COMPONENT_CONTEXT_KEY = "__component_instance__"
 
 
-def _parse_tag_kwargs(bits):
-    kwargs = {}
-    for bit in bits:
-        if "=" in bit:
-            key, val = bit.split("=", 1)
-            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
-                val = val[1:-1]
-            kwargs[key] = val
-        else:
-            kwargs[bit] = bit
-    return kwargs
+def _strip_quotes(val):
+    if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+        return val[1:-1]
+    return None
 
 
 class ComponentNode(Node):
@@ -95,29 +88,53 @@ class ComponentNode(Node):
 class _TextFillNode:
     def __init__(self, text):
         self.text = text
+        self.data_var = None
+        self.fallback_var = None
 
-    def render_fill(self, context):
+    def render_fill(self, context, slot_data=None, slot_fallback=None):
         return self.text
 
 
 class FillNode(Node):
-    def __init__(self, slot_name, nodelist):
+    def __init__(self, slot_name, nodelist, data_var=None, fallback_var=None):
         self.slot_name = slot_name
         self.nodelist = nodelist
+        self.data_var = data_var
+        self.fallback_var = fallback_var
 
     def render(self, context: Context) -> str:
         return ""
 
-    def render_fill(self, context: Context) -> str:
-        return self.nodelist.render(context)
+    def render_fill(self, context: Context, slot_data=None, slot_fallback=None) -> str:
+        context.push()
+        try:
+            if self.data_var and slot_data is not None:
+                context[self.data_var] = slot_data
+            if self.fallback_var and slot_fallback is not None:
+                context[self.fallback_var] = slot_fallback
+            return self.nodelist.render(context)
+        finally:
+            context.pop()
+
+
+class _SlotData:
+    def __init__(self, data_dict):
+        self._data = data_dict
+        for k, v in data_dict.items():
+            setattr(self, k, v)
+
+    def __repr__(self):
+        items = ", ".join(f"{k}={v!r}" for k, v in self._data.items())
+        return f"SlotData({items})"
 
 
 class SlotNode(Node):
-    def __init__(self, slot_name, nodelist, is_required=False, is_default=False):
+    def __init__(self, slot_name, nodelist, is_required=False, is_default=False, slot_kwargs_expr=None):
         self.slot_name = slot_name
         self.nodelist = nodelist
         self.is_required = is_required
         self.is_default = is_default
+        self.slot_kwargs_expr = slot_kwargs_expr or {}
 
     def render(self, context: Context) -> str:
         fills = context.get(_FILL_CONTEXT_KEY, {})
@@ -131,9 +148,21 @@ class SlotNode(Node):
         if self.is_default and fill_node is None:
             fill_node = fills.get("default")
 
+        slot_data = {}
+        for key, val_expr in self.slot_kwargs_expr.items():
+            if hasattr(val_expr, 'resolve'):
+                slot_data[key] = val_expr.resolve(context)
+            else:
+                slot_data[key] = val_expr
+
+        slot_fallback = None
+        if self.nodelist:
+            slot_fallback = self.nodelist.render(context)
+
         if fill_node is not None:
             if hasattr(fill_node, 'render_fill'):
-                return fill_node.render_fill(context)
+                data_obj = _SlotData(slot_data) if slot_data else None
+                return fill_node.render_fill(context, slot_data=data_obj, slot_fallback=slot_fallback)
             return str(fill_node)
 
         if self.is_required:
@@ -141,8 +170,8 @@ class SlotNode(Node):
                 f"Slot '{slot_name}' is required but was not filled."
             )
 
-        if self.nodelist:
-            return self.nodelist.render(context)
+        if slot_fallback is not None:
+            return slot_fallback
 
         return ""
 
@@ -161,9 +190,9 @@ def do_component(parser, token):
         raise TemplateSyntaxError(f"'{tag_name}' tag requires at least one argument (the component name).")
 
     comp_name_raw = bits[1]
-    if (comp_name_raw.startswith('"') and comp_name_raw.endswith('"')) or \
-       (comp_name_raw.startswith("'") and comp_name_raw.endswith("'")):
-        comp_name = comp_name_raw[1:-1]
+    unquoted = _strip_quotes(comp_name_raw)
+    if unquoted is not None:
+        comp_name = unquoted
     else:
         comp_name = parser.compile_filter(comp_name_raw)
 
@@ -198,14 +227,24 @@ def do_slot(parser, token):
         raise TemplateSyntaxError(f"'{tag_name}' tag requires at least one argument (the slot name).")
 
     slot_name_raw = bits[1]
-    if (slot_name_raw.startswith('"') and slot_name_raw.endswith('"')) or \
-       (slot_name_raw.startswith("'") and slot_name_raw.endswith("'")):
-        slot_name = slot_name_raw[1:-1]
+    unquoted = _strip_quotes(slot_name_raw)
+    if unquoted is not None:
+        slot_name = unquoted
     else:
         slot_name = parser.compile_filter(slot_name_raw)
 
-    is_required = "required" in bits[2:]
-    is_default = "default" in bits[2:]
+    is_required = False
+    is_default = False
+    slot_kwargs_expr = {}
+
+    for bit in bits[2:]:
+        if bit == "required":
+            is_required = True
+        elif bit == "default":
+            is_default = True
+        elif "=" in bit:
+            key, val_str = bit.split("=", 1)
+            slot_kwargs_expr[key] = parser.compile_filter(val_str)
 
     if self_closing:
         nodelist = NodeList()
@@ -213,7 +252,7 @@ def do_slot(parser, token):
         nodelist = parser.parse(("endslot",))
         parser.delete_first_token()
 
-    return SlotNode(slot_name, nodelist, is_required=is_required, is_default=is_default)
+    return SlotNode(slot_name, nodelist, is_required=is_required, is_default=is_default, slot_kwargs_expr=slot_kwargs_expr)
 
 
 @register.tag("fill")
@@ -230,11 +269,24 @@ def do_fill(parser, token):
         raise TemplateSyntaxError(f"'{tag_name}' tag requires at least one argument (the slot name).")
 
     slot_name_raw = bits[1]
-    if (slot_name_raw.startswith('"') and slot_name_raw.endswith('"')) or \
-       (slot_name_raw.startswith("'") and slot_name_raw.endswith("'")):
-        slot_name = slot_name_raw[1:-1]
+    unquoted = _strip_quotes(slot_name_raw)
+    if unquoted is not None:
+        slot_name = unquoted
     else:
         slot_name = slot_name_raw
+
+    data_var = None
+    fallback_var = None
+
+    for bit in bits[2:]:
+        if "=" in bit:
+            key, val_str = bit.split("=", 1)
+            val_unquoted = _strip_quotes(val_str)
+            val = val_unquoted if val_unquoted is not None else val_str
+            if key == "data":
+                data_var = val
+            elif key == "fallback":
+                fallback_var = val
 
     if self_closing:
         nodelist = NodeList()
@@ -242,4 +294,4 @@ def do_fill(parser, token):
         nodelist = parser.parse(("endfill",))
         parser.delete_first_token()
 
-    return FillNode(slot_name, nodelist)
+    return FillNode(slot_name, nodelist, data_var=data_var, fallback_var=fallback_var)
