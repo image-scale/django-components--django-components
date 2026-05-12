@@ -62,6 +62,7 @@ class ComponentNode(Node):
 
         from django_components.slots import normalize_slot_map
         instance.slots = {}
+        instance._context = context
 
         tmpl = instance._resolve_template()
 
@@ -73,9 +74,11 @@ class ComponentNode(Node):
         )
 
         context.push()
-        context.update(template_data or {})
+        for k, v in (template_data or {}).items():
+            context[k] = v
         context[_COMPONENT_CONTEXT_KEY] = instance
         context[_FILL_CONTEXT_KEY] = fills
+        instance._context = context
 
         try:
             rendered = tmpl.render(context)
@@ -366,3 +369,71 @@ def do_html_attrs(parser, token):
             positional_exprs.append(parser.compile_filter(bit))
 
     return HtmlAttrsNode(positional_exprs, kwargs_exprs, defaults_exprs)
+
+
+class ProvideNode(Node):
+    def __init__(self, provide_name, kwargs_exprs, nodelist, self_closing=False):
+        self.provide_name = provide_name
+        self.kwargs_exprs = kwargs_exprs
+        self.nodelist = nodelist
+        self.self_closing = self_closing
+
+    def render(self, context: Context) -> str:
+        from django_components.provide import ProvideData, set_provided_data
+
+        resolved_kwargs = {}
+        for key, val_expr in self.kwargs_exprs.items():
+            if hasattr(val_expr, 'resolve'):
+                resolved_kwargs[key] = val_expr.resolve(context)
+            else:
+                resolved_kwargs[key] = val_expr
+
+        provide_name = self.provide_name
+        if hasattr(provide_name, 'resolve'):
+            provide_name = provide_name.resolve(context)
+
+        data = ProvideData(**resolved_kwargs)
+
+        context.push()
+        set_provided_data(context, provide_name, data)
+        try:
+            if self.self_closing:
+                return ""
+            return self.nodelist.render(context)
+        finally:
+            context.pop()
+
+
+@register.tag("provide")
+def do_provide(parser, token):
+    bits = token.split_contents()
+    tag_name = bits[0]
+
+    self_closing = False
+    if bits and bits[-1] == "/":
+        self_closing = True
+        bits = bits[:-1]
+
+    if len(bits) < 2:
+        raise TemplateSyntaxError(f"'{tag_name}' tag requires at least one argument (the provide name).")
+
+    name_raw = bits[1]
+    unquoted = _strip_quotes(name_raw)
+    if unquoted is not None:
+        provide_name = unquoted
+    else:
+        provide_name = parser.compile_filter(name_raw)
+
+    kwargs_exprs = {}
+    for bit in bits[2:]:
+        if "=" in bit:
+            key, val_str = bit.split("=", 1)
+            kwargs_exprs[key] = parser.compile_filter(val_str)
+
+    if self_closing:
+        nodelist = NodeList()
+    else:
+        nodelist = parser.parse(("endprovide",))
+        parser.delete_first_token()
+
+    return ProvideNode(provide_name, kwargs_exprs, nodelist, self_closing=self_closing)

@@ -40,6 +40,12 @@ class Component:
     def get_template_data(self, args, kwargs, slots, context) -> dict:
         return {}
 
+    def inject(self, name: str, default: Any = None) -> Any:
+        from django_components.provide import get_provided_data
+        if self._context is not None:
+            return get_provided_data(self._context, name, default)
+        return default
+
     def _resolve_template(self) -> Template:
         if self.template is not None:
             return Template(self.template)
@@ -88,9 +94,11 @@ class Component:
         )
 
         render_context.push()
-        render_context.update(template_data or {})
+        for k, v in (template_data or {}).items():
+            render_context[k] = v
         render_context["_component_instance"] = instance
         render_context["_component_id"] = instance.id
+        instance._context = render_context
 
         try:
             rendered = tmpl.render(render_context)
